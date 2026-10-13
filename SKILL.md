@@ -44,5 +44,6 @@ The script handles everything below automatically. Read on only if it fails.
 - Out of GPU memory on huge frames → retry adding `-t 128` (tile size) by calling the exe directly.
 - The engine upscales by integer factor from input resolution. A 480p source at 4x gives 1920p — the model cannot invent pixels that were never captured.
 - Videos: ~2.5s/frame on an RTX 4060 laptop. Estimate `frame_count × 2.5s` and tell the user before starting long videos.
+- **Verify after reassembly**: compare output frame count (`ffprobe -count_frames ... nb_read_frames`) against the input's. A shortfall means frames were corrupted mid-pipeline — classic cause is a full disk (frame PNGs get silently truncated). Free space, wipe the temp frames, and rerun; put temp frames on a drive with enough headroom (a 1080p-source 4K upscale needs ~5-10MB per frame).
 - macOS/Linux paths are documented but untested; if they fail, debug from the exe's own error output.
 - Text rendered inside AI-generated video (banners, subtitles) may come out garbled — the model redraws glyphs, it does not read them.
