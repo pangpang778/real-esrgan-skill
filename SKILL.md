@@ -1,0 +1,48 @@
+---
+name: real-esrgan-skill
+description: Upscale images and videos 2x/4x with Real-ESRGAN super resolution. Use when the user asks to 超分 / 放大分辨率 / 提升清晰度 / upscale / enhance resolution / upscale video of an image or video file.
+---
+
+# Real-ESRGAN Upscale
+
+Upscale an image or video with Real-ESRGAN (ncnn-vulkan build). One engine, two modes.
+
+## Quick start
+
+Run the pipeline script — do NOT hand-roll ffmpeg commands:
+
+```bash
+bash "$SKILL_DIR/scripts/upscale.sh" <input-file> [-s 2|3|4] [-n MODEL] [-o OUTPUT]
+```
+
+- `-s` scale factor, default 4
+- `-n` model: `realesrgan-x4plus` (default, real-world photos/video), `realesrgan-x4plus-anime` (anime), `realesr-general-x4v3` (small & fast general)
+- `-o` output path; default: `<input>_x<s>.<ext>` next to input
+
+Determine `$SKILL_DIR` from where this SKILL.md lives.
+
+The script handles everything below automatically. Read on only if it fails.
+
+## What the script does
+
+1. **Engine setup** — needs `realesrgan-ncnn-vulkan` binary (cached in `~/.real-esrgan-skill/bin/`). On first run it downloads the official build for the platform from https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/ :
+   - Windows: `realesrgan-ncnn-vulkan-20220424-windows.zip`
+   - macOS: `realesrgan-ncnn-vulkan-20220424-macos.zip` (untested)
+   - Linux: `realesrgan-ncnn-vulkan-20220424-ubuntu.zip` (untested)
+   If GitHub is unreachable or too slow (common in China), retry with the mirror prefix `https://gh-proxy.com/` prepended to the URL.
+2. **ffmpeg check** — video mode needs ffmpeg. If missing, STOP and show the user the one-liner for their platform, ask them to confirm before installing:
+   - Windows: `winget install Gyan.FFmpeg`
+   - macOS: `brew install ffmpeg`
+   - Linux: `sudo apt install ffmpeg`
+   Never install silently.
+3. **Image mode** (`.png/.jpg/.jpeg/.webp`): single exe call, output PNG.
+4. **Video mode**: extract frames (`ffmpeg -vsync 0`, PNG) → upscale every frame → reassemble with `libx264 -crf 18 -pix_fmt yuv420p`, copying the original audio track. Frames live in a `mktemp -d` dir, deleted at the end.
+
+## Notes and failure modes
+
+- Requires a Vulkan-capable GPU (NVIDIA/AMD/Intel). No GPU → the exe errors out; tell the user this is a hard requirement.
+- Out of GPU memory on huge frames → retry adding `-t 128` (tile size) by calling the exe directly.
+- The engine upscales by integer factor from input resolution. A 480p source at 4x gives 1920p — the model cannot invent pixels that were never captured.
+- Videos: ~2.5s/frame on an RTX 4060 laptop. Estimate `frame_count × 2.5s` and tell the user before starting long videos.
+- macOS/Linux paths are documented but untested; if they fail, debug from the exe's own error output.
+- Text rendered inside AI-generated video (banners, subtitles) may come out garbled — the model redraws glyphs, it does not read them.
